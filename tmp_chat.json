@@ -1,0 +1,11 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "provider": "mock",
+  "model": "mock-chat-model",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好，模型网关"
+    }
+  ]
+}

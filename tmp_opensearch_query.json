@@ -1,0 +1,26 @@
+﻿{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "content": "七天无理由退货"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001"
+          }
+        },
+        {
+          "term": {
+            "document_status": "indexed"
+          }
+        }
+      ]
+    }
+  },
+  "size": 3
+}

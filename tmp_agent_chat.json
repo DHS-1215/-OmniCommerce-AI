@@ -1,0 +1,10 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "session_id": "cs_demo_session_001",
+  "user_no": "U100001",
+  "message": "我的订单 O100001 到哪了？",
+  "conversation_summary": "",
+  "context": {
+    "order_no": "O100001"
+  }
+}

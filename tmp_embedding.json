@@ -1,0 +1,9 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "provider": "mock",
+  "model": "mock-embedding-model",
+  "texts": [
+    "智能客服",
+    "企业知识库 RAG"
+  ]
+}

@@ -1,0 +1,12 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "session_id": "sg_demo_session_001",
+  "user_no": "U100001",
+  "message": "我预算 300 元以内，想买一个适合办公室用的智能小家电，最好安全、省心、评价好一点",
+  "conversation_summary": "",
+  "context": {
+    "budget_max": 300,
+    "scenario": "office",
+    "preferences": ["安全", "省心", "评价好"]
+  }
+}

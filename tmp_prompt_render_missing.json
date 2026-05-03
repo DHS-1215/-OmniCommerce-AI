@@ -1,0 +1,7 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "scene": "customer_service_intent",
+  "variables": {
+    "user_message": "我的订单什么时候发货？"
+  }
+}

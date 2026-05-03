@@ -1,0 +1,148 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+      dockerfile: Dockerfile
+    container_name: omni_backend
+    environment:
+      APP_NAME: omni-commerce-ai
+      APP_ENV: dev
+      APP_DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://omni:omni_password@postgres:5432/omni_ai
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change_me
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: "1440"
+      LOG_LEVEL: INFO
+
+      DEFAULT_LLM_PROVIDER: mock
+      DEFAULT_EMBEDDING_PROVIDER: mock
+      DEFAULT_LLM_MODEL: mock-chat-model
+      DEFAULT_EMBEDDING_MODEL: mock-embedding-model
+      LLM_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      LLM_API_KEY: ""
+      LLM_TIMEOUT_SECONDS: "30"
+      LLM_MAX_RETRIES: "2"
+
+      QDRANT_URL: http://qdrant:6333
+      RAG_VECTOR_COLLECTION: omni_knowledge_chunks
+      RAG_VECTOR_SIZE: "3"
+      RAG_CHUNK_SIZE: "500"
+      RAG_CHUNK_OVERLAP: "80"
+      RAG_TOP_K: "5"
+      RAG_VECTOR_WEIGHT: "0.65"
+      RAG_KEYWORD_WEIGHT: "0.35"
+      RAG_RERANK_TOP_N: "5"
+
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_INDEX: omni_knowledge_chunks
+      OPENSEARCH_USERNAME: ""
+      OPENSEARCH_PASSWORD: ""
+
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: omni_minio
+      MINIO_SECRET_KEY: omni_minio_password
+      MINIO_BUCKET_KNOWLEDGE: omni-knowledge
+      MINIO_SECURE: "false"
+
+      OCR_PROVIDER: mock
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      opensearch:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: omni_postgres
+    environment:
+      POSTGRES_USER: omni
+      POSTGRES_PASSWORD: omni_password
+      POSTGRES_DB: omni_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - omni_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U omni -d omni_ai" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: omni_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - omni_redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    container_name: omni_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - omni_qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: omni_opensearch
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - omni_opensearch_data:/usr/share/opensearch/data
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    container_name: omni_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: omni_minio
+      MINIO_ROOT_PASSWORD: omni_minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - omni_minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  omni_postgres_data:
+  omni_redis_data:
+  omni_qdrant_data:
+  omni_opensearch_data:
+  omni_minio_data:

@@ -1,0 +1,14 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "session_id": "debug_cs_aftersale_create_session_001",
+  "user_no": "U100001",
+  "message": "我要退款，商品不想要了",
+  "conversation_summary": "",
+  "context": {
+    "user_no": "U100001",
+    "order_no": "O100001",
+    "order_item_id": "31000000-0000-0000-0000-000000000001",
+    "after_sale_type": "refund",
+    "reason": "商品不想要了，申请退款"
+  }
+}

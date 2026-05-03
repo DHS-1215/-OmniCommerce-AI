@@ -1,0 +1,10 @@
+﻿{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "session_id": "cs_demo_session_product_001",
+  "user_no": "U100001",
+  "message": "智营智能恒温电热水壶有哪些规格？",
+  "conversation_summary": "",
+  "context": {
+    "product_no": "P100001"
+  }
+}
