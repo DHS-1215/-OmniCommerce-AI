@@ -33,6 +33,9 @@ class ShoppingGuideState(TypedDict, total=False):
     comparisons: list[dict[str, Any]]
     citations: list[dict[str, Any]]
 
+    shopping_knowledge_answer: str | None
+    knowledge_used: bool
+
     answer: str
     tool_calls: list[dict[str, Any]]
     metadata: dict[str, Any]
@@ -41,3 +44,4 @@ class ShoppingGuideState(TypedDict, total=False):
     error_message: str | None
 
     runtime: dict[str, Any]
+

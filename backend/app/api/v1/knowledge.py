@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.helpers import get_request_id, to_response_data
+from app.core.auth_dependencies import CurrentUser, ensure_tenant_allowed, require_roles
 from app.core.response import ApiResponse, success_response
 from app.db.session import get_db_session
 from app.schemas.knowledge import KnowledgeAskRequest, KnowledgeSearchRequest
@@ -30,6 +31,7 @@ async def upload_knowledge_document(
         language: str | None = Form(default="zh-CN", description="文档语言"),
         user_id: UUID | None = Form(default=None, description="用户 ID，认证模块完成前显式传入"),
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ) -> ApiResponse:
     """
     上传知识库文档。
@@ -47,6 +49,13 @@ async def upload_knowledge_document(
     入库主链路：
     上传 -> ParserRegistry -> 解析 -> 切片 -> Embedding -> Qdrant -> PostgreSQL 元数据。
     """
+    tenant_id = ensure_tenant_allowed(
+        provided_tenant_id=tenant_id,
+        current_user=current_user,
+    )
+
+    if current_user is not None:
+        user_id = current_user.user_id
 
     data = await knowledge_service.upload_document(
         db,

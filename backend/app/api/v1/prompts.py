@@ -39,6 +39,7 @@ from app.schemas.prompt import (
     PromptVersionUpdate,
 )
 from app.services.prompt_service import PromptService
+from app.core.auth_dependencies import CurrentUser, ensure_tenant_allowed, require_roles
 
 router = APIRouter()
 
@@ -89,10 +90,15 @@ async def create_prompt_template(
         payload: PromptTemplateCreate,
         request: Request,
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     创建 Prompt 模板。
     """
+    ensure_tenant_allowed(
+        provided_tenant_id=getattr(payload, "tenant_id", None),
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.create_template(
@@ -182,17 +188,21 @@ async def get_active_prompt_by_scene(
     )
 
 
-
-@router.get("/versions/{version_id}")
-async def get_prompt_version(
+@router.post("/versions/{version_id}/activate")
+async def activate_prompt_version(
         version_id: UUID,
         request: Request,
         tenant_id: UUID = Query(..., description="租户 ID"),
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     查询 Prompt 版本详情。
     """
+    tenant_id = ensure_tenant_allowed(
+        provided_tenant_id=tenant_id,
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.get_version_detail(
@@ -237,6 +247,7 @@ async def deactivate_prompt_version(
         request: Request,
         tenant_id: UUID = Query(..., description="租户 ID"),
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     停用 Prompt 版本。
@@ -285,10 +296,15 @@ async def update_prompt_template(
         payload: PromptTemplateUpdate,
         request: Request,
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     更新 Prompt 模板。
     """
+    ensure_tenant_allowed(
+        provided_tenant_id=getattr(payload, "tenant_id", None),
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.update_template(
@@ -309,10 +325,15 @@ async def deactivate_prompt_template(
         request: Request,
         tenant_id: UUID = Query(..., description="租户 ID"),
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     停用 Prompt 模板。
     """
+    tenant_id = ensure_tenant_allowed(
+        provided_tenant_id=tenant_id,
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.deactivate_template(
@@ -333,6 +354,7 @@ async def archive_prompt_template(
         request: Request,
         tenant_id: UUID = Query(..., description="租户 ID"),
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     归档 Prompt 模板。
@@ -341,6 +363,10 @@ async def archive_prompt_template(
     - 使用软删除；
     - 不物理删除数据库记录。
     """
+    tenant_id = ensure_tenant_allowed(
+        provided_tenant_id=tenant_id,
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.archive_template(
@@ -395,10 +421,15 @@ async def create_prompt_version(
         payload: PromptVersionCreate,
         request: Request,
         db: AsyncSession = Depends(get_db_session),
+        current_user: CurrentUser | None = Depends(require_roles("admin")),
 ):
     """
     创建 Prompt 版本。
     """
+    ensure_tenant_allowed(
+        provided_tenant_id=getattr(payload, "tenant_id", None),
+        current_user=current_user,
+    )
 
     service = PromptService()
     result = await service.create_version(

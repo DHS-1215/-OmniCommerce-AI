@@ -236,6 +236,98 @@ async def summarize_reviews_node(state: ShoppingGuideState) -> ShoppingGuideStat
     return state
 
 
+async def enrich_shopping_knowledge_node(state: ShoppingGuideState) -> ShoppingGuideState:
+    started_at = time.perf_counter()
+
+    if not _should_use_shopping_knowledge(state):
+        state["shopping_knowledge_answer"] = None
+        state["knowledge_used"] = False
+
+        await _log_step(
+            state,
+            step_name="enrich_shopping_knowledge",
+            step_order=6,
+            input_summary=state["message"],
+            output_summary="knowledge enrichment skipped",
+            status="success",
+            latency_ms=_latency_ms(started_at),
+        )
+        return state
+
+    tools = state["runtime"]["recommendation_tools"]
+    question = _build_shopping_knowledge_question(state)
+
+    result = await tools.ask_shopping_knowledge(
+        tenant_id=state["tenant_id"],
+        question=question,
+        request_id=state.get("request_id"),
+        top_k=3,
+    )
+
+    state.setdefault("tool_calls", []).append(_tool_call_view(result))
+
+    await _log_tool_call(
+        state,
+        tool_name=result.tool_name,
+        input_summary=question,
+        output_summary=tool_result_to_log_summary(result),
+        status="success" if result.success else "failed",
+        latency_ms=_latency_ms(started_at),
+        error_code=result.error_code,
+        error_message=result.error_message,
+    )
+
+    metadata = dict(state.get("metadata") or {})
+
+    if result.success:
+        data = result.data or {}
+        citations = data.get("citations") or []
+        answer = data.get("answer")
+
+        raw_answer = data.get("answer")
+        knowledge_summary = raw_answer
+
+        # mock provider 会复读 RAG Prompt 和上下文，不能直接拼进导购回答。
+        # 如果是 mock 输出，改用 citations 生成短摘要。
+        if raw_answer and str(raw_answer).startswith("[mock]"):
+            knowledge_summary = _build_knowledge_summary_from_citations(citations)
+
+        state["shopping_knowledge_answer"] = knowledge_summary
+        state["citations"] = citations
+        state["knowledge_used"] = bool(citations)
+
+        metadata["shopping_knowledge_question"] = question
+        metadata["shopping_knowledge_answer"] = knowledge_summary
+        metadata["shopping_knowledge_raw_answer_is_mock"] = bool(
+            raw_answer and str(raw_answer).startswith("[mock]")
+        )
+        metadata["shopping_knowledge_citation_count"] = len(citations)
+        metadata["knowledge_prompt_template_id"] = data.get("prompt_template_id")
+        metadata["knowledge_prompt_version_id"] = data.get("prompt_version_id")
+        metadata["knowledge_boundary"] = (
+            "KnowledgeService output only enriches recommendation explanation; "
+            "it must not create products, SKUs, prices or stock information."
+        )
+    else:
+        state["shopping_knowledge_answer"] = None
+        state["knowledge_used"] = False
+        metadata["shopping_knowledge_error"] = result.error_message or result.error_code
+
+    state["metadata"] = metadata
+
+    await _log_step(
+        state,
+        step_name="enrich_shopping_knowledge",
+        step_order=6,
+        input_summary=question,
+        output_summary=str(state.get("shopping_knowledge_answer") or "")[:500],
+        status="success" if result.success else "failed",
+        latency_ms=_latency_ms(started_at),
+    )
+
+    return state
+
+
 async def generate_recommendation_node(state: ShoppingGuideState) -> ShoppingGuideState:
     started_at = time.perf_counter()
 
@@ -255,7 +347,17 @@ async def generate_recommendation_node(state: ShoppingGuideState) -> ShoppingGui
         ],
     )
 
+    shopping_knowledge_answer = state.get("shopping_knowledge_answer")
+    knowledge_used = state.get("knowledge_used") is True
+
     answer = fallback_answer
+
+    if knowledge_used and shopping_knowledge_answer:
+        answer = (
+            f"{fallback_answer}"
+            f" 结合知识库补充：{shopping_knowledge_answer}"
+        )
+
     prompt_template_id = None
     prompt_version_id = None
     llm_used = False
@@ -272,7 +374,11 @@ async def generate_recommendation_node(state: ShoppingGuideState) -> ShoppingGui
                         "user_need": state["message"],
                         "budget": str(state.get("budget") or ""),
                         "user_preference": ", ".join(state.get("preferences") or []),
-                        "candidate_products": str(recommendations)[:4000],
+                        "candidate_products": (
+                                                      str(recommendations)
+                                                      + "\n\n选购知识补充："
+                                                      + str(state.get("shopping_knowledge_answer") or "")
+                                              )[:4000],
                     },
                 ),
             )
@@ -317,10 +423,11 @@ async def generate_recommendation_node(state: ShoppingGuideState) -> ShoppingGui
     metadata["prompt_template_id"] = str(prompt_template_id) if prompt_template_id else None
     metadata["prompt_version_id"] = str(prompt_version_id) if prompt_version_id else None
     metadata["answer_source"] = "llm_polish" if llm_used else "rule_fallback"
-    metadata["llm_boundary"] = (
-        "LLM only polishes shopping guide answer; "
-        "structured recommendations are generated by ProductService + RecommendationService rules."
+    metadata["rag_boundary"] = (
+        "RAG shopping knowledge only enriches answer and citations; "
+        "it must not create or modify recommended products and SKUs."
     )
+    metadata["knowledge_used"] = state.get("knowledge_used") is True
 
     state["answer"] = answer
     state["metadata"] = metadata
@@ -555,3 +662,87 @@ def _recommendation_from_dict(item: dict[str, Any]) -> Any:
     from app.schemas.shopping_guide import ShoppingGuideRecommendationItem
 
     return ShoppingGuideRecommendationItem(**item)
+
+
+def _should_use_shopping_knowledge(state: ShoppingGuideState) -> bool:
+    context = state.get("context") or {}
+
+    if context.get("enable_knowledge") is True:
+        return True
+
+    if context.get("use_rag") is True:
+        return True
+
+    message = state.get("message") or ""
+
+    knowledge_keywords = [
+        "怎么选",
+        "如何选",
+        "选购",
+        "注意什么",
+        "区别",
+        "适合",
+        "安全吗",
+        "安全",
+        "材质",
+        "保修",
+        "售后",
+        "退换",
+        "办公室",
+        "家用",
+        "宿舍",
+    ]
+
+    return any(keyword in message for keyword in knowledge_keywords)
+
+
+def _build_shopping_knowledge_question(state: ShoppingGuideState) -> str:
+    recommendations = state.get("recommendations") or []
+
+    product_titles = [
+        item.get("title")
+        for item in recommendations
+        if item.get("title")
+    ]
+
+    product_text = "、".join(product_titles[:3])
+
+    if product_text:
+        return (
+            f"用户正在选购商品：{product_text}。"
+            f"用户需求：{state.get('message') or ''}。"
+            f"请检索与选购建议、适用场景、安全注意事项、售后政策相关的知识。"
+        )
+
+    return (
+        f"用户正在咨询商品选购。"
+        f"用户需求：{state.get('message') or ''}。"
+        f"请检索与选购建议、适用场景、安全注意事项、售后政策相关的知识。"
+    )
+
+
+def _build_knowledge_summary_from_citations(citations: list[dict[str, Any]]) -> str | None:
+    if not citations:
+        return None
+
+    snippets = []
+    for citation in citations[:3]:
+        snippet = citation.get("content_snippet")
+        document_title = citation.get("document_title")
+
+        if not snippet:
+            continue
+
+        clean_snippet = " ".join(str(snippet).split())
+        if len(clean_snippet) > 120:
+            clean_snippet = clean_snippet[:120] + "..."
+
+        if document_title:
+            snippets.append(f"参考《{document_title}》：{clean_snippet}")
+        else:
+            snippets.append(clean_snippet)
+
+    if not snippets:
+        return None
+
+    return "；".join(snippets)

@@ -73,6 +73,26 @@ class ShoppingGuideMatchEvidence(BaseModel):
     review_risk: ShoppingGuideReviewRisk
 
 
+class ShoppingGuideScoreItem(BaseModel):
+    score: int
+    reason: str
+
+
+class ShoppingGuideScoreBreakdown(BaseModel):
+    budget_score: ShoppingGuideScoreItem
+    scenario_score: ShoppingGuideScoreItem
+    preference_score: ShoppingGuideScoreItem
+    stock_score: ShoppingGuideScoreItem
+    review_score: ShoppingGuideScoreItem
+    total_score: int
+
+
+class ShoppingGuideComparisonDimension(BaseModel):
+    name: str
+    value: str
+    reason: str | None = None
+
+
 class ShoppingGuideSkuView(BaseModel):
     sku_no: str
     sku_name: str | None = None
@@ -102,6 +122,7 @@ class ShoppingGuideRecommendationItem(BaseModel):
     review_summary: ShoppingGuideReviewSummary | None = None
     match_evidence: ShoppingGuideMatchEvidence
     recommendation_reason: str
+    score_breakdown: ShoppingGuideScoreBreakdown
     risk_notes: list[str] = Field(default_factory=list)
 
 
@@ -109,6 +130,9 @@ class ShoppingGuideComparisonItem(BaseModel):
     product_no: str
     title: str
     skus: list[ShoppingGuideSkuView] = Field(default_factory=list)
+    dimensions: list[ShoppingGuideComparisonDimension] = Field(default_factory=list)
+    recommendation_reason: str | None = None
+    total_score: int | None = None
 
 
 class ShoppingGuideToolCallView(BaseModel):

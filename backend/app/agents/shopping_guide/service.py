@@ -13,6 +13,7 @@ from app.services.tool_call_log_service import ToolCallLogService
 from app.tools.recommendation_tools import RecommendationTools
 from app.llm.gateway import build_model_gateway
 from app.services.model_call_log_service import ModelCallLogService
+from app.services.knowledge_service import KnowledgeService
 
 
 class ShoppingGuideAgentService:
@@ -20,9 +21,12 @@ class ShoppingGuideAgentService:
         self.db = db
 
         self.recommendation_service = RecommendationService()
+        self.knowledge_service = KnowledgeService()
+
         self.recommendation_tools = RecommendationTools(
             db=db,
             recommendation_service=self.recommendation_service,
+            knowledge_service=self.knowledge_service,
         )
 
         self.prompt_service = PromptService()
@@ -37,10 +41,10 @@ class ShoppingGuideAgentService:
         self.workflow = build_shopping_guide_workflow()
 
     async def chat(
-        self,
-        *,
-        request: ShoppingGuideChatRequest,
-        request_id: str | None = None,
+            self,
+            *,
+            request: ShoppingGuideChatRequest,
+            request_id: str | None = None,
     ) -> ShoppingGuideChatResponse:
         initial_state = {
             "tenant_id": request.tenant_id,

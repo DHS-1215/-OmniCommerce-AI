@@ -12,6 +12,7 @@ from uuid import UUID
 
 from app.services.recommendation_service import RecommendationService
 from app.tools.base import ToolResult, unexpected_error_result
+from app.services.knowledge_service import KnowledgeService
 
 
 class RecommendationTools:
@@ -19,9 +20,11 @@ class RecommendationTools:
             self,
             db: Any,
             recommendation_service: RecommendationService | None = None,
+            knowledge_service: KnowledgeService | None = None,
     ) -> None:
         self.db = db
         self.recommendation_service = recommendation_service or RecommendationService()
+        self.knowledge_service = knowledge_service or KnowledgeService()
 
     async def parse_user_need(
             self,
@@ -126,5 +129,51 @@ class RecommendationTools:
                     ],
                 },
             )
+        except Exception as exc:
+            return unexpected_error_result(tool_name=tool_name, exc=exc)
+
+    async def ask_shopping_knowledge(
+            self,
+            *,
+            tenant_id: UUID,
+            question: str,
+            request_id: str | None = None,
+            top_k: int = 3,
+    ) -> ToolResult:
+        """调用 KnowledgeService 获取选购知识。
+
+        注意：
+        - 只能通过 KnowledgeService。
+        - 不直接查 Qdrant / OpenSearch。
+        - 返回内容只能增强推荐解释，不能新增商品或 SKU。
+        """
+
+        tool_name = "ask_shopping_knowledge"
+
+        try:
+            result = await self.knowledge_service.ask(
+                self.db,
+                tenant_id=tenant_id,
+                question=question,
+                top_k=top_k,
+                request_id=request_id,
+                user_id=None,
+            )
+
+            return ToolResult(
+                success=True,
+                tool_name=tool_name,
+                data={
+                    "question": result.question,
+                    "answer": result.answer,
+                    "citations": [
+                        citation.model_dump(mode="json")
+                        for citation in result.citations
+                    ],
+                    "prompt_template_id": str(result.prompt_template_id) if result.prompt_template_id else None,
+                    "prompt_version_id": str(result.prompt_version_id) if result.prompt_version_id else None,
+                },
+            )
+
         except Exception as exc:
             return unexpected_error_result(tool_name=tool_name, exc=exc)

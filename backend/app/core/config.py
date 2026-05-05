@@ -40,6 +40,8 @@ class Settings(BaseSettings):
         alias="REDIS_URL",
     )
 
+    auth_enabled: bool = Field(default=False, alias="AUTH_ENABLED")
+
     jwt_secret_key: str = Field(default="change_me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=1440, alias="JWT_EXPIRE_MINUTES")

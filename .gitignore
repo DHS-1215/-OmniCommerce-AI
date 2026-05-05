@@ -1,0 +1,109 @@
+# -----------------------------
+# OS / File Manager
+# -----------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -----------------------------
+# IDE / Editor
+# -----------------------------
+.idea/
+.vscode/
+*.code-workspace
+
+# -----------------------------
+# Python cache / bytecode
+# -----------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+.venv/
+venv/
+env/
+backend/.venv/
+ENV/
+
+# -----------------------------
+# Python tooling cache
+# -----------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+
+# -----------------------------
+# Coverage / test reports
+# -----------------------------
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+test-results/
+reports/
+
+# -----------------------------
+# Build / packaging
+# -----------------------------
+build/
+dist/
+site/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+*.whl
+
+# -----------------------------
+# Local environment / secrets
+# Keep example files tracked
+# -----------------------------
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# -----------------------------
+# Logs
+# -----------------------------
+*.log
+logs/
+log/
+
+# -----------------------------
+# Local temp / debug artifacts
+# -----------------------------
+tmp_*.json
+tmp_*.md
+tmp_*.txt
+tmp_*.csv
+tmp_*.pretty.json
+*.tmp
+*.bak
+
+# -----------------------------
+# Runtime / local process files
+# -----------------------------
+*.pid
+*.out
+
+# -----------------------------
+# Optional local databases
+# -----------------------------
+*.sqlite3
+*.db
+
+# -----------------------------
+# Jupyter
+# -----------------------------
+.ipynb_checkpoints/

@@ -17,6 +17,7 @@ from app.agents.shopping_guide.nodes import (
     parse_need_node,
     recall_candidates_node,
     summarize_reviews_node,
+    enrich_shopping_knowledge_node,
 )
 from app.agents.shopping_guide.state import ShoppingGuideState
 
@@ -38,8 +39,11 @@ def build_shopping_guide_workflow():
     workflow.add_edge("parse_need", "recall_candidates")
     workflow.add_edge("recall_candidates", "compare_skus")
     workflow.add_edge("compare_skus", "summarize_reviews")
-    workflow.add_edge("summarize_reviews", "generate_recommendation")
+    workflow.add_edge("summarize_reviews", "enrich_shopping_knowledge")
+    workflow.add_edge("enrich_shopping_knowledge", "generate_recommendation")
     workflow.add_edge("generate_recommendation", "finalize_task")
     workflow.add_edge("finalize_task", END)
+
+    workflow.add_node("enrich_shopping_knowledge", enrich_shopping_knowledge_node)
 
     return workflow.compile()

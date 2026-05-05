@@ -10,11 +10,12 @@ services:
       APP_NAME: omni-commerce-ai
       APP_ENV: dev
       APP_DEBUG: "true"
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
       DATABASE_URL: postgresql+asyncpg://omni:omni_password@postgres:5432/omni_ai
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET_KEY: change_me
-      JWT_ALGORITHM: HS256
-      JWT_EXPIRE_MINUTES: "1440"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change_me_in_local_env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
       LOG_LEVEL: INFO
 
       DEFAULT_LLM_PROVIDER: mock

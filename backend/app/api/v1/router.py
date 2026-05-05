@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 创建时间    :2026/04/26 18:57
 IDE       :PyCharm
@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 from app.api.v1.aftersales import router as aftersales_router
 from app.api.v1.health import router as health_router
+from app.api.v1.auth import router as auth_router
 from app.api.v1.orders import router as orders_router
 from app.api.v1.products import router as products_router
 from app.api.v1.tickets import router as tickets_router
@@ -17,10 +18,18 @@ from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.llm import router as llm_router
 from app.api.v1.prompts import router as prompts_router
 from app.api.v1.agents import router as agents_router
+from app.api.v1.content import router as content_router
+from app.api.v1.evaluations import router as evaluations_router
 
 api_v1_router = APIRouter()
 
 api_v1_router.include_router(health_router)
+
+api_v1_router.include_router(
+    auth_router,
+    prefix="/auth",
+    tags=["auth"],
+)
 
 api_v1_router.include_router(
     users_router,
@@ -70,4 +79,16 @@ api_v1_router.include_router(
     agents_router,
     prefix="/agents",
     tags=["agents"],
+)
+
+api_v1_router.include_router(
+    content_router,
+    prefix="/content",
+    tags=["content"],
+)
+
+api_v1_router.include_router(
+    evaluations_router,
+    prefix="/evaluations",
+    tags=["evaluations"],
 )

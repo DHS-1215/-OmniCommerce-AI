@@ -25,6 +25,9 @@ from app.schemas.shopping_guide import (
     ShoppingGuideScenarioMatch,
     ShoppingGuideSkuView,
     ShoppingGuideStockRisk,
+    ShoppingGuideComparisonDimension,
+    ShoppingGuideScoreBreakdown,
+    ShoppingGuideScoreItem,
 )
 from app.services.product_service import ProductService
 from app.services.user_service import UserService
@@ -219,12 +222,15 @@ class RecommendationService:
                 review_summary=review_summary,
             )
 
+            score_breakdown = self._build_score_breakdown(evidence)
+
             risk_notes = self._build_risk_notes(evidence)
 
             recommendation_reason = self._build_rule_based_reason(
                 product_title=title,
                 evidence=evidence,
                 sku_views=sku_views,
+                score_breakdown=score_breakdown,
             )
 
             recommendation = ShoppingGuideRecommendationItem(
@@ -235,6 +241,7 @@ class RecommendationService:
                 matched_skus=sku_views,
                 review_summary=review_summary,
                 match_evidence=evidence,
+                score_breakdown=score_breakdown,
                 recommendation_reason=recommendation_reason,
                 risk_notes=risk_notes,
             )
@@ -242,10 +249,13 @@ class RecommendationService:
             recommendations.append(recommendation)
 
             comparisons.append(
-                ShoppingGuideComparisonItem(
+                self._build_comparison_item(
                     product_no=product_no,
                     title=title,
-                    skus=sku_views,
+                    sku_views=sku_views,
+                    evidence=evidence,
+                    score_breakdown=score_breakdown,
+                    recommendation_reason=recommendation_reason,
                 )
             )
 
@@ -615,11 +625,13 @@ class RecommendationService:
             product_title: str,
             evidence: ShoppingGuideMatchEvidence,
             sku_views: list[ShoppingGuideSkuView],
+            score_breakdown: ShoppingGuideScoreBreakdown,
     ) -> str:
         best_sku = min(sku_views, key=lambda sku: sku.sale_price)
 
         parts = [
             f"{product_title} 的最低可选 SKU 价格为 {best_sku.sale_price} 元。",
+            f"综合推荐分 {score_breakdown.total_score} 分。",
             evidence.budget_match.reason,
             evidence.scenario_match.reason,
             evidence.preference_match.reason,
@@ -628,6 +640,127 @@ class RecommendationService:
         ]
 
         return "".join(parts)
+
+    def _build_score_breakdown(
+            self,
+            evidence: ShoppingGuideMatchEvidence,
+    ) -> ShoppingGuideScoreBreakdown:
+        budget_score = 25 if evidence.budget_match.matched else 0
+        scenario_score = 20 if evidence.scenario_match.matched else 8
+        preference_score = 20 if evidence.preference_match.matched else 8
+
+        if evidence.stock_risk.level == "normal":
+            stock_score = 20
+        elif evidence.stock_risk.level == "low_stock":
+            stock_score = 8
+        else:
+            stock_score = 0
+
+        if evidence.review_risk.level == "low":
+            review_score = 15
+        elif evidence.review_risk.level == "medium":
+            review_score = 8
+        else:
+            review_score = 0
+
+        total_score = (
+                budget_score
+                + scenario_score
+                + preference_score
+                + stock_score
+                + review_score
+        )
+
+        return ShoppingGuideScoreBreakdown(
+            budget_score=ShoppingGuideScoreItem(
+                score=budget_score,
+                reason=evidence.budget_match.reason,
+            ),
+            scenario_score=ShoppingGuideScoreItem(
+                score=scenario_score,
+                reason=evidence.scenario_match.reason,
+            ),
+            preference_score=ShoppingGuideScoreItem(
+                score=preference_score,
+                reason=evidence.preference_match.reason,
+            ),
+            stock_score=ShoppingGuideScoreItem(
+                score=stock_score,
+                reason=evidence.stock_risk.reason,
+            ),
+            review_score=ShoppingGuideScoreItem(
+                score=review_score,
+                reason=evidence.review_risk.reason,
+            ),
+            total_score=total_score,
+        )
+
+    def _build_comparison_item(
+            self,
+            *,
+            product_no: str,
+            title: str,
+            sku_views: list[ShoppingGuideSkuView],
+            evidence: ShoppingGuideMatchEvidence,
+            score_breakdown: ShoppingGuideScoreBreakdown,
+            recommendation_reason: str,
+    ) -> ShoppingGuideComparisonItem:
+        min_price = min((sku.sale_price for sku in sku_views), default=Decimal("0"))
+        stock_text = "；".join(
+            f"{sku.sku_name or sku.sku_no}: 库存 {sku.stock_quantity}"
+            for sku in sku_views
+        )
+
+        dimensions = [
+            ShoppingGuideComparisonDimension(
+                name="价格",
+                value=f"最低可选 SKU 价格 {min_price} 元",
+                reason=score_breakdown.budget_score.reason,
+            ),
+            ShoppingGuideComparisonDimension(
+                name="场景匹配",
+                value="匹配" if evidence.scenario_match.matched else "弱匹配",
+                reason=score_breakdown.scenario_score.reason,
+            ),
+            ShoppingGuideComparisonDimension(
+                name="偏好匹配",
+                value="匹配" if evidence.preference_match.matched else "弱匹配",
+                reason=score_breakdown.preference_score.reason,
+            ),
+            ShoppingGuideComparisonDimension(
+                name="库存风险",
+                value=evidence.stock_risk.level,
+                reason=score_breakdown.stock_score.reason,
+            ),
+            ShoppingGuideComparisonDimension(
+                name="评价风险",
+                value=evidence.review_risk.level,
+                reason=score_breakdown.review_score.reason,
+            ),
+            ShoppingGuideComparisonDimension(
+                name="推荐理由",
+                value=recommendation_reason,
+                reason=f"综合推荐分 {score_breakdown.total_score}",
+            ),
+        ]
+
+        if stock_text:
+            dimensions.append(
+                ShoppingGuideComparisonDimension(
+                    name="SKU 库存",
+                    value=stock_text,
+                    reason="来自真实 active SKU 数据",
+                )
+            )
+
+        return ShoppingGuideComparisonItem(
+            product_no=product_no,
+            title=title,
+            skus=sku_views,
+            dimensions=dimensions,
+            recommendation_reason=recommendation_reason,
+            total_score=score_breakdown.total_score,
+        )
 
     def _build_risk_notes(self, evidence: ShoppingGuideMatchEvidence) -> list[str]:
         notes: list[str] = []
@@ -643,12 +776,9 @@ class RecommendationService:
 
         return notes
 
-    def _recommendation_sort_key(self, item: ShoppingGuideRecommendationItem) -> tuple[int, int, int, int]:
-        evidence = item.match_evidence
+    def _recommendation_sort_key(self, item: ShoppingGuideRecommendationItem) -> tuple[int, int]:
         return (
-            int(evidence.budget_match.matched),
-            int(evidence.scenario_match.matched),
-            int(evidence.preference_match.matched),
+            item.score_breakdown.total_score,
             -len(item.risk_notes),
         )
 
