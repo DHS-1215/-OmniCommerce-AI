@@ -177,20 +177,41 @@ def test_evaluation_rag_run_should_persist_result_even_when_retrieval_fails() ->
             "case_type": "rag",
             "name": "RAG 政策问答评测用例",
             "description": "验证 RAG 评测链路会写入 evaluation_result",
+            "status": "inactive",
             "input_json": {
                 "question": "七天无理由退货需要满足什么条件？",
                 "top_k": 5,
             },
             "expected_output_json": {
-                "answer": "商品完好，包装完整",
+                "answer": (
+                    "七天无理由退货需要满足：商品未拆封、不影响二次销售，"
+                    "并且用户在签收后 7 天内提交申请。"
+                    "定制商品、已拆封耳机、影响二次销售的商品不支持七天无理由退货。"
+                ),
             },
             "reference_context_json": [
                 {
-                    "document_id": "demo_doc",
-                    "chunk_id": "demo_chunk",
-                    "content": "七天无理由退货需要商品完好，包装完整。",
+                    "content": (
+                        "智营商城支持七天无理由退货。"
+                        "退货条件：1. 商品未拆封；"
+                        "2. 不影响二次销售；"
+                        "3. 用户需要在签收后 7 天内提交申请。"
+                        "退款将在审核通过后 3 个工作日内原路退回。"
+                        "特殊说明：定制商品、已拆封耳机、影响二次销售的商品不支持七天无理由退货。"
+                    ),
                 }
             ],
+            "metadata_json": {
+                "expected_keywords": [
+                    "商品未拆封",
+                    "不影响二次销售",
+                    "签收后 7 天内",
+                    "提交申请",
+                    "定制商品",
+                    "已拆封耳机",
+                    "不支持七天无理由退货",
+                ],
+            },
             "tags_json": [
                 "rag",
                 "policy",
